@@ -9,7 +9,7 @@ esphome:
     name: "AXA_Remote_2_Controler"
     version: "2024.10.0"
   includes:
-    - "custom_components/custom_axaa2_remote/custom_axaa2_remote.h"
+    - "src/espaxa.h"
   on_boot:
     priority: -10
     then:
@@ -53,35 +53,6 @@ time:
   - platform: homeassistant
     id: homeassistant_time
 
-sensor:
-  - platform: uptime
-    id: uptime_sensor
-    icon: mdi:clock-start
-    internal: True
-    on_raw_value:
-      then:
-        - text_sensor.template.publish:
-            id: uptime_human
-            state: !lambda |-
-              int seconds = round(id(uptime_sensor).raw_state);
-              int days = seconds / (24 * 3600);
-              seconds = seconds % (24 * 3600);
-              int hours = seconds / 3600;
-              seconds = seconds % 3600;
-              int minutes = seconds /  60;
-              seconds = seconds % 60;
-              return (
-                (days ? to_string(days) + "d " : "") +
-                (hours ? to_string(hours) + "h " : "") +
-                (minutes ? to_string(minutes) + "m " : "") +
-                (to_string(seconds) + "s")
-              ).c_str();
-
-  - platform: wifi_signal
-    name: WiFi Signal
-    update_interval: 60s
-    icon: mdi:wifi
-
 button:
   - platform: safe_mode
     name: "Safe Mode"
@@ -92,32 +63,6 @@ button:
     id: restart_button
     name: "Restart"
     icon: mdi:restart
-
-text_sensor:
-  - platform: version
-    name: "ESPHome Version"
-    hide_timestamp: true
-
-  - platform: template
-    name: Uptime
-    id: uptime_human
-    icon: mdi:clock-start
-
-  - platform: wifi_info
-    ip_address:
-      name: "IP Address"
-      id: ip_address
-      icon: mdi:ip
-    mac_address:
-      name: "MAC Address"
-      icon: mdi:wifi-settings
-    ssid:
-      name: "SSID"
-      id: ssid_address
-      icon: mdi:wifi-settings
-    bssid:
-      name: "BSSID"
-      icon: mdi:wifi-settings
 
 logger:
   logs:
@@ -163,20 +108,92 @@ light:
     output: led_green
     internal: True
 
-external_components:
-  - source: github://Baanaaana/espaxa
-    components: [ custom_axaa2_remote ]
+custom_component:
+  - lambda: |-
+      auto axa = new CustomAXA2RemoteUART(id(uart_bus));
+      App.register_component(axa);
+      return {axa};
 
-custom_axaa2_remote:
-  id: custom_axaa2_remote
-  uart_bus: uart_bus
+text_sensor:
+  - platform: version
+    name: "ESPHome Version"
+    hide_timestamp: true
+
+  - platform: template
+    name: Uptime
+    id: uptime_human
+    icon: mdi:clock-start
+
+  - platform: wifi_info
+    ip_address:
+      name: "IP Address"
+      id: ip_address
+      icon: mdi:ip
+    mac_address:
+      name: "MAC Address"
+      icon: mdi:wifi-settings
+    ssid:
+      name: "SSID"
+      id: ssid_address
+      icon: mdi:wifi-settings
+    bssid:
+      name: "BSSID"
+      icon: mdi:wifi-settings
+
+  - platform: custom
+    lambda: |-
+      auto axa = new CustomAXA2RemoteUART(id(uart_bus));
+      App.register_component(axa);
+      return {axa->axa_status_text};
+    text_sensors:
+      - name: "AXA Status"
+        icon: mdi:lock
+        id: axa_status_text
+
+sensor:
+  - platform: uptime
+    id: uptime_sensor
+    icon: mdi:clock-start
+    internal: True
+    on_raw_value:
+      then:
+        - text_sensor.template.publish:
+            id: uptime_human
+            state: !lambda |-
+              int seconds = round(id(uptime_sensor).raw_state);
+              int days = seconds / (24 * 3600);
+              seconds = seconds % (24 * 3600);
+              int hours = seconds / 3600;
+              seconds = seconds % 3600;
+              int minutes = seconds /  60;
+              seconds = seconds % 60;
+              return (
+                (days ? to_string(days) + "d " : "") +
+                (hours ? to_string(hours) + "h " : "") +
+                (minutes ? to_string(minutes) + "m " : "") +
+                (to_string(seconds) + "s")
+              ).c_str();
+
+  - platform: wifi_signal
+    name: WiFi Signal
+    update_interval: 60s
+    icon: mdi:wifi
+  - platform: custom
+    lambda: |-
+      auto axa = new CustomAXA2RemoteUART(id(uart_bus));
+      App.register_component(axa);
+      return {axa->axa_window};
+    sensors:
+      - name: "Status"
+        id: axa_window_status
+        internal: True
 
 cover:
   - platform: template
     name: "Raam"
     assumed_state: False
     lambda: |-
-      if (id(custom_axaa2_remote).get_axa_window()->state) {
+      if (id(axa_window_status).state) {
         return COVER_OPEN;
       } else {
         return COVER_CLOSED;
