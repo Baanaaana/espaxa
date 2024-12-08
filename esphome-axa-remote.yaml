@@ -4,12 +4,12 @@ substitutions:
 esphome:
   name: "$name"
   friendly_name: ESPHome - AXA Remote 2.0
-  comment: ESP32-C3-MINI-1-N4 - AXA Remote 2.0 Controler
+  comment: ESP32-C3-MINI-1-N4 - AXA Remote 2.0 Controller
   project:
     name: "AXA_Remote_2_Controler"
     version: "2024.10.0"
   includes:
-    - "AXA/espaxa.h"
+    - "custom_components/custom_axaa2_remote/custom_axaa2_remote.h"
   on_boot:
     priority: -10
     then:
@@ -163,68 +163,9 @@ light:
     output: led_green
     internal: True
 
-custom_component:
-  - lambda: |-
-      auto axa = new CustomAXA2RemoteUART(id(uart_bus));
-      App.register_component(axa);
-      return {axa};
+external_components:
+  - source: local
+    components: [ custom_axaa2_remote ]
 
-text_sensor:
-  - platform: custom
-    lambda: |-
-      auto axa = new CustomAXA2RemoteUART(id(uart_bus));
-      App.register_component(axa);
-      return {axa->axa_status_text};
-    text_sensors:
-      - name: "AXA Status"
-        icon: mdi:lock
-        id: axa_status_text
-
-sensor:
-  - platform: custom
-    lambda: |-
-      auto axa = new CustomAXA2RemoteUART(id(uart_bus));
-      App.register_component(axa);
-      return {axa->axa_window};
-    sensors:
-      - name: "Status"
-        id: axa_window_status
-        internal: True
-
-cover:
-  - platform: template
-    name: "Raam"
-    assumed_state: False
-    lambda: |-
-      if (id(axa_window_status).state) {
-        return COVER_OPEN;
-      } else {
-        return COVER_CLOSED;
-      }
-    open_action:
-      - logger.log: "Window open action triggered"
-      - light.turn_on: led_green_light
-      - uart.write: "\r"
-      - delay: 0.1s
-      - uart.write: "STOP\r\n"
-      - delay: 0.1s
-      - uart.write: "OPEN\r\n"
-      - light.turn_off: led_green_light
-    close_action:
-      - logger.log: "Window close action triggered"
-      - light.turn_on: led_green_light
-      - uart.write: "\r"
-      - delay: 0.1s
-      - uart.write: "STOP\r\n"
-      - delay: 0.1s
-      - uart.write: "OPEN\r\n"
-      - delay: 0.1s
-      - uart.write: "CLOSE\r\n"
-      - light.turn_off: led_green_light
-    stop_action:
-      - logger.log: "Window stop action triggered"
-      - light.turn_on: led_green_light
-      - uart.write: "\r"
-      - delay: 0.1s
-      - uart.write: "STOP\r\n"
-      - light.turn_off: led_green_light
+custom_axaa2_remote:
+  uart_bus: uart_bus
