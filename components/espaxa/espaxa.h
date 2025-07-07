@@ -9,8 +9,8 @@ namespace esphome {
 namespace espaxa {
 
 #define DELAY_MS 5000
-#define DEVICE_INFO_DELAY_MS 10000
-#define VERSION_DELAY_MS 15000
+#define DEVICE_INFO_DELAY_MS 2000
+#define VERSION_DELAY_MS 4000
 #define INFO_RETRY_INTERVAL_MS 60000
 #define MAX_RETRY_COUNT 3
 #define AXA_OPENED 210
