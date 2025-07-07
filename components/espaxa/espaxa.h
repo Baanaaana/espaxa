@@ -38,6 +38,8 @@ class EspAxaComponent : public Component, public uart::UARTDevice {
   int axa_status_{-1};
   bool device_info_requested_{false};
   bool version_requested_{false};
+  bool expecting_device_info_{false};
+  bool expecting_version_{false};
   
   sensor::Sensor *status_sensor_{nullptr};
   text_sensor::TextSensor *status_text_sensor_{nullptr};

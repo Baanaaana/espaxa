@@ -11,6 +11,8 @@ void EspAxaComponent::setup() {
   this->last_read_ = 0;
   this->device_info_requested_ = false;
   this->version_requested_ = false;
+  this->expecting_device_info_ = false;
+  this->expecting_version_ = false;
 }
 
 void EspAxaComponent::dump_config() {
@@ -28,9 +30,11 @@ void EspAxaComponent::loop() {
     if (!this->device_info_requested_ && this->device_info_text_sensor_ != nullptr) {
       this->request_device_info();
       this->device_info_requested_ = true;
+      this->expecting_device_info_ = true;
     } else if (!this->version_requested_ && this->version_text_sensor_ != nullptr) {
       this->request_version();
       this->version_requested_ = true;
+      this->expecting_version_ = true;
     } else {
       this->request_status();
     }
@@ -86,20 +90,22 @@ void EspAxaComponent::read_response() {
       }
     }
 
-    if (strlen(line) >= 3 && isdigit(line[0]) && isdigit(line[1]) && isdigit(line[2])) {
-      this->axa_status_ = atoi(line);
-      ESP_LOGD(TAG, "Parsed AXA Status Code: %d, Line: %s", this->axa_status_, line);
-      parsed = true;
-      break;
-    } else if (strlen(line) > 0) {
-      if (this->device_info_text_sensor_ != nullptr && this->device_info_requested_ && !this->version_requested_) {
+    if (strlen(line) > 0) {
+      if (this->expecting_device_info_ && this->device_info_text_sensor_ != nullptr) {
         this->device_info_text_sensor_->publish_state(line);
         ESP_LOGD(TAG, "Device Info: %s", line);
+        this->expecting_device_info_ = false;
         parsed = true;
-      } else if (this->version_text_sensor_ != nullptr && this->version_requested_) {
+      } else if (this->expecting_version_ && this->version_text_sensor_ != nullptr) {
         this->version_text_sensor_->publish_state(line);
         ESP_LOGD(TAG, "Version: %s", line);
+        this->expecting_version_ = false;
         parsed = true;
+      } else if (strlen(line) >= 3 && isdigit(line[0]) && isdigit(line[1]) && isdigit(line[2])) {
+        this->axa_status_ = atoi(line);
+        ESP_LOGD(TAG, "Parsed AXA Status Code: %d, Line: %s", this->axa_status_, line);
+        parsed = true;
+        break;
       }
     }
 
