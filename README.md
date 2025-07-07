@@ -37,6 +37,7 @@ external_components:
       url: https://github.com/Baanaaana/espaxa
       ref: main
     components: [ espaxa ]
+    refresh: 0s
 ```
 
 ## Configuration
