@@ -92,20 +92,45 @@ void EspAxaComponent::read_response() {
 
     if (strlen(line) > 0) {
       if (this->expecting_device_info_ && this->device_info_text_sensor_ != nullptr) {
-        this->device_info_text_sensor_->publish_state(line);
-        ESP_LOGD(TAG, "Device Info: %s", line);
+        if (strstr(line, "502") != nullptr) {
+          this->device_info_text_sensor_->publish_state("Not Supported");
+          ESP_LOGD(TAG, "Device Info: Not Supported (502)");
+        } else {
+          this->device_info_text_sensor_->publish_state(line);
+          ESP_LOGD(TAG, "Device Info: %s", line);
+        }
         this->expecting_device_info_ = false;
         parsed = true;
       } else if (this->expecting_version_ && this->version_text_sensor_ != nullptr) {
-        this->version_text_sensor_->publish_state(line);
-        ESP_LOGD(TAG, "Version: %s", line);
+        if (strstr(line, "261") != nullptr) {
+          // Extract version from "261 Firmware V1.20"
+          char* version_start = strchr(line, ' ');
+          if (version_start != nullptr) {
+            version_start++; // Skip the space
+            this->version_text_sensor_->publish_state(version_start);
+            ESP_LOGD(TAG, "Version: %s", version_start);
+          } else {
+            this->version_text_sensor_->publish_state(line);
+            ESP_LOGD(TAG, "Version: %s", line);
+          }
+        } else {
+          this->version_text_sensor_->publish_state(line);
+          ESP_LOGD(TAG, "Version: %s", line);
+        }
         this->expecting_version_ = false;
         parsed = true;
       } else if (strlen(line) >= 3 && isdigit(line[0]) && isdigit(line[1]) && isdigit(line[2])) {
-        this->axa_status_ = atoi(line);
-        ESP_LOGD(TAG, "Parsed AXA Status Code: %d, Line: %s", this->axa_status_, line);
-        parsed = true;
-        break;
+        int status_code = atoi(line);
+        // Only treat as status if it's a known status code
+        if (status_code == 210 || status_code == 211 || status_code == 212) {
+          this->axa_status_ = status_code;
+          ESP_LOGD(TAG, "Parsed AXA Status Code: %d, Line: %s", this->axa_status_, line);
+          parsed = true;
+          break;
+        } else {
+          ESP_LOGD(TAG, "Parsed AXA Status Code: %d, Line: %s", status_code, line);
+          parsed = true;
+        }
       }
     }
 
