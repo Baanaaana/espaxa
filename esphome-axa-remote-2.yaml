@@ -7,7 +7,7 @@ esphome:
   comment: ESP32-C3-MINI-1-N4 - AXA Remote 2.0 Controller
   project:
     name: "AXA_Remote_2_Controler"
-    version: "2025.6.3"
+    version: "2025.7.7"
   on_boot:
     priority: -10
     then:
