@@ -19,6 +19,92 @@ We use ESPHome to create the firmware. This is more like a configuration than a 
 Use a RJ12 connecter to connect the module to the AXA remote. Use the connection in the schema. Remove the batteries in the AXA Remote!
 
 ![Connector](https://github.com/Baanaaana/espaxa/blob/main/docs/20200831_155821.jpg)
+## Features
+
+- Reads window status (Open/Unlocked, Strong Locked, Weak Locked)
+- Provides sensor and text sensor outputs
+- Device info and version information retrieval
+- Compatible with ESPHome 2025.6.3+
+
+## Installation
+
+Add this to your ESPHome configuration:
+
+```yaml
+external_components:
+  - source:
+      type: git
+      url: https://github.com/Baanaaana/espaxa
+      ref: main
+    components: [ espaxa ]
+```
+
+## Configuration
+
+Complete configuration example:
+
+```yaml
+# UART configuration
+uart:
+  id: uart_bus
+  tx_pin: GPIO4
+  rx_pin: GPIO5
+  baud_rate: 19200
+  stop_bits: 2
+
+# ESPAXA component
+espaxa:
+  id: axa_component
+  uart_id: uart_bus
+
+# Sensors
+sensor:
+  - platform: espaxa
+    name: "Window Status"
+    id: axa_window_status
+    espaxa_id: axa_component
+
+text_sensor:
+  - platform: espaxa
+    name: "AXA Status"
+    espaxa_id: axa_component
+    type: status
+    
+  - platform: espaxa
+    name: "AXA Device Info"
+    espaxa_id: axa_component
+    type: device_info
+    
+  - platform: espaxa
+    name: "AXA Version"
+    espaxa_id: axa_component
+    type: version
+```
+
+## Text Sensor Types
+
+The component supports three types of text sensors:
+
+- **status**: Shows the current lock state (Strong Locked, Weak Locked, Unlocked)
+- **device_info**: Shows device type information (e.g., "AXA RV2900 2.0")
+- **version**: Shows firmware version of the AXA Remote
+
+## Status Codes
+
+- 210: Unlocked/Open
+- 211: Strong Locked
+- 212: Weak Locked
+
+## Available Commands
+
+The component uses these AXA Remote commands:
+- `DEVICE` - Returns device type information
+- `VERSION` - Returns firmware version
+- `STATUS` - Returns current lock state
+- `OPEN` - Opens the window opener
+- `CLOSE` - Closes the window opener
+- `STOP` - Stops the window opener
+
 ## Home Assistant
 The ESP module will show up as a new integration. After enabling this integration, you can add the entities given in your espaxa yaml file in your interface. The objects will already use their default MDI picture.
 ![Home Assitant](https://github.com/Baanaaana/espaxa/blob/main/docs/homeassistant_esphome.png)

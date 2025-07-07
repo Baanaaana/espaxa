@@ -188,6 +188,23 @@ text_sensor:
     icon: mdi:lock
     id: axa_status_text
     espaxa_id: axa_component
+    type: status
+
+  # AXA device info text sensor
+  - platform: espaxa
+    name: "AXA Device Info"
+    icon: mdi:information-outline
+    id: axa_device_info
+    espaxa_id: axa_component
+    type: device_info
+
+  # AXA version text sensor
+  - platform: espaxa
+    name: "AXA Version"
+    icon: mdi:tag-outline
+    id: axa_version
+    espaxa_id: axa_component
+    type: version
 
 cover:
   - platform: template

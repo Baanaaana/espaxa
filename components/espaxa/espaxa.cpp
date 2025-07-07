@@ -9,6 +9,8 @@ static const char *const TAG = "espaxa";
 void EspAxaComponent::setup() {
   ESP_LOGCONFIG(TAG, "Setting up AXA UART...");
   this->last_read_ = 0;
+  this->device_info_requested_ = false;
+  this->version_requested_ = false;
 }
 
 void EspAxaComponent::dump_config() {
@@ -22,7 +24,17 @@ void EspAxaComponent::loop() {
   if (now - this->last_read_ > DELAY_MS || this->last_read_ == 0) {
     this->last_read_ = now;
     this->flush_uart_buffer();
-    this->request_status();
+    
+    if (!this->device_info_requested_ && this->device_info_text_sensor_ != nullptr) {
+      this->request_device_info();
+      this->device_info_requested_ = true;
+    } else if (!this->version_requested_ && this->version_text_sensor_ != nullptr) {
+      this->request_version();
+      this->version_requested_ = true;
+    } else {
+      this->request_status();
+    }
+    
     delay(100);
 
     if (this->available()) {
@@ -42,6 +54,18 @@ void EspAxaComponent::request_status() {
   this->write_str("\r\n");
   delay(100);
   this->write_str("STATUS\r\n");
+}
+
+void EspAxaComponent::request_device_info() {
+  this->write_str("\r\n");
+  delay(100);
+  this->write_str("DEVICE\r\n");
+}
+
+void EspAxaComponent::request_version() {
+  this->write_str("\r\n");
+  delay(100);
+  this->write_str("VERSION\r\n");
 }
 
 void EspAxaComponent::read_response() {
@@ -67,6 +91,16 @@ void EspAxaComponent::read_response() {
       ESP_LOGD(TAG, "Parsed AXA Status Code: %d, Line: %s", this->axa_status_, line);
       parsed = true;
       break;
+    } else if (strlen(line) > 0) {
+      if (this->device_info_text_sensor_ != nullptr && this->device_info_requested_ && !this->version_requested_) {
+        this->device_info_text_sensor_->publish_state(line);
+        ESP_LOGD(TAG, "Device Info: %s", line);
+        parsed = true;
+      } else if (this->version_text_sensor_ != nullptr && this->version_requested_) {
+        this->version_text_sensor_->publish_state(line);
+        ESP_LOGD(TAG, "Version: %s", line);
+        parsed = true;
+      }
     }
 
     line = strtok(NULL, "\n");
@@ -74,7 +108,7 @@ void EspAxaComponent::read_response() {
 
   if (!parsed) {
     this->axa_status_ = -1;
-    ESP_LOGW(TAG, "Failed to parse AXA Status Code. Full Response: %s", this->buffer_);
+    ESP_LOGW(TAG, "Failed to parse response. Full Response: %s", this->buffer_);
   }
 }
 
