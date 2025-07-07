@@ -13,6 +13,14 @@ void EspAxaComponent::setup() {
   this->version_requested_ = false;
   this->expecting_device_info_ = false;
   this->expecting_version_ = false;
+  
+  // Initialize sensors with empty states to prevent initial type name publishing
+  if (this->device_info_text_sensor_ != nullptr) {
+    this->device_info_text_sensor_->publish_state("");
+  }
+  if (this->version_text_sensor_ != nullptr) {
+    this->version_text_sensor_->publish_state("");
+  }
 }
 
 void EspAxaComponent::dump_config() {
@@ -67,6 +75,7 @@ void EspAxaComponent::request_device_info() {
 }
 
 void EspAxaComponent::request_version() {
+  ESP_LOGD(TAG, "Requesting VERSION command");
   this->write_str("\r\n");
   delay(100);
   this->write_str("VERSION\r\n");
@@ -92,17 +101,25 @@ void EspAxaComponent::read_response() {
 
     if (strlen(line) > 0) {
       if (this->expecting_device_info_ && this->device_info_text_sensor_ != nullptr) {
-        if (strstr(line, "502") != nullptr) {
+        // Skip command echo
+        if (strcmp(line, "DEVICE") == 0) {
+          ESP_LOGD(TAG, "Skipping DEVICE command echo");
+        } else if (strstr(line, "502") != nullptr) {
           this->device_info_text_sensor_->publish_state("Not Supported");
           ESP_LOGD(TAG, "Device Info: Not Supported (502)");
+          this->expecting_device_info_ = false;
+          parsed = true;
         } else {
           this->device_info_text_sensor_->publish_state(line);
           ESP_LOGD(TAG, "Device Info: %s", line);
+          this->expecting_device_info_ = false;
+          parsed = true;
         }
-        this->expecting_device_info_ = false;
-        parsed = true;
       } else if (this->expecting_version_ && this->version_text_sensor_ != nullptr) {
-        if (strstr(line, "261") != nullptr) {
+        // Skip command echo
+        if (strcmp(line, "VERSION") == 0) {
+          ESP_LOGD(TAG, "Skipping VERSION command echo");
+        } else if (strstr(line, "261") != nullptr) {
           // Extract version from "261 Firmware V1.20"
           char* version_start = strchr(line, ' ');
           if (version_start != nullptr) {
@@ -113,12 +130,14 @@ void EspAxaComponent::read_response() {
             this->version_text_sensor_->publish_state(line);
             ESP_LOGD(TAG, "Version: %s", line);
           }
+          this->expecting_version_ = false;
+          parsed = true;
         } else {
           this->version_text_sensor_->publish_state(line);
           ESP_LOGD(TAG, "Version: %s", line);
+          this->expecting_version_ = false;
+          parsed = true;
         }
-        this->expecting_version_ = false;
-        parsed = true;
       } else if (strlen(line) >= 3 && isdigit(line[0]) && isdigit(line[1]) && isdigit(line[2])) {
         int status_code = atoi(line);
         // Only treat as status if it's a known status code
