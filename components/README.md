@@ -59,4 +59,4 @@ text_sensor:
 
 ## Example Usage
 
-See the included `esphome-axa-remote-new.yaml` for a complete example configuration.
+See the included `esphome-axa-remote-2.yaml` for a complete example configuration.
