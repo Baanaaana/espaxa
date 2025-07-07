@@ -9,10 +9,16 @@ static const char *const TAG = "espaxa";
 void EspAxaComponent::setup() {
   ESP_LOGCONFIG(TAG, "Setting up AXA UART...");
   this->last_read_ = 0;
+  this->last_device_info_request_ = 0;
+  this->last_version_request_ = 0;
   this->device_info_requested_ = false;
   this->version_requested_ = false;
   this->expecting_device_info_ = false;
   this->expecting_version_ = false;
+  this->device_info_success_ = false;
+  this->version_success_ = false;
+  this->device_info_retry_count_ = 0;
+  this->version_retry_count_ = 0;
   
   // Initialize sensors with empty states to prevent initial type name publishing
   if (this->device_info_text_sensor_ != nullptr) {
@@ -31,24 +37,57 @@ void EspAxaComponent::dump_config() {
 void EspAxaComponent::loop() {
   unsigned long now = millis();
 
+  // Check if it's time to request device info (with delay at boot and retry logic)
+  if (!this->device_info_success_ && this->device_info_text_sensor_ != nullptr && 
+      now > DEVICE_INFO_DELAY_MS && 
+      (this->last_device_info_request_ == 0 || 
+       (now - this->last_device_info_request_ > INFO_RETRY_INTERVAL_MS)) &&
+      this->device_info_retry_count_ < MAX_RETRY_COUNT) {
+    
+    this->flush_uart_buffer();
+    this->request_device_info();
+    this->last_device_info_request_ = now;
+    this->expecting_device_info_ = true;
+    this->device_info_retry_count_++;
+    ESP_LOGD(TAG, "Requesting device info (attempt %d/%d)", this->device_info_retry_count_, MAX_RETRY_COUNT);
+    
+    delay(100);
+    if (this->available()) {
+      this->read_response();
+      this->update_sensor_state();
+    }
+    return;
+  }
+
+  // Check if it's time to request version (with delay at boot and retry logic)
+  if (!this->version_success_ && this->version_text_sensor_ != nullptr && 
+      now > VERSION_DELAY_MS && 
+      (this->last_version_request_ == 0 || 
+       (now - this->last_version_request_ > INFO_RETRY_INTERVAL_MS)) &&
+      this->version_retry_count_ < MAX_RETRY_COUNT) {
+    
+    this->flush_uart_buffer();
+    this->request_version();
+    this->last_version_request_ = now;
+    this->expecting_version_ = true;
+    this->version_retry_count_++;
+    ESP_LOGD(TAG, "Requesting version (attempt %d/%d)", this->version_retry_count_, MAX_RETRY_COUNT);
+    
+    delay(100);
+    if (this->available()) {
+      this->read_response();
+      this->update_sensor_state();
+    }
+    return;
+  }
+
+  // Regular status polling
   if (now - this->last_read_ > DELAY_MS || this->last_read_ == 0) {
     this->last_read_ = now;
     this->flush_uart_buffer();
-    
-    if (!this->device_info_requested_ && this->device_info_text_sensor_ != nullptr) {
-      this->request_device_info();
-      this->device_info_requested_ = true;
-      this->expecting_device_info_ = true;
-    } else if (!this->version_requested_ && this->version_text_sensor_ != nullptr) {
-      this->request_version();
-      this->version_requested_ = true;
-      this->expecting_version_ = true;
-    } else {
-      this->request_status();
-    }
+    this->request_status();
     
     delay(100);
-
     if (this->available()) {
       this->read_response();
       this->update_sensor_state();
@@ -108,6 +147,7 @@ void EspAxaComponent::read_response() {
           this->device_info_text_sensor_->publish_state("Not Supported");
           ESP_LOGD(TAG, "Device Info: Not Supported (502)");
           this->expecting_device_info_ = false;
+          this->device_info_success_ = true;
           parsed = true;
         } else if (strstr(line, "260") != nullptr) {
           // Extract device info from "260 AXA RV2900 2.0"
@@ -121,11 +161,13 @@ void EspAxaComponent::read_response() {
             ESP_LOGD(TAG, "Device Info: %s", line);
           }
           this->expecting_device_info_ = false;
+          this->device_info_success_ = true;
           parsed = true;
         } else {
           this->device_info_text_sensor_->publish_state(line);
           ESP_LOGD(TAG, "Device Info: %s", line);
           this->expecting_device_info_ = false;
+          this->device_info_success_ = true;
           parsed = true;
         }
       } else if (this->expecting_version_ && this->version_text_sensor_ != nullptr) {
@@ -144,11 +186,13 @@ void EspAxaComponent::read_response() {
             ESP_LOGD(TAG, "Version: %s", line);
           }
           this->expecting_version_ = false;
+          this->version_success_ = true;
           parsed = true;
         } else {
           this->version_text_sensor_->publish_state(line);
           ESP_LOGD(TAG, "Version: %s", line);
           this->expecting_version_ = false;
+          this->version_success_ = true;
           parsed = true;
         }
       } else if (strlen(line) >= 3 && isdigit(line[0]) && isdigit(line[1]) && isdigit(line[2])) {
