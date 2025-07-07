@@ -108,7 +108,7 @@ The component uses these AXA Remote commands:
 
 ## Home Assistant
 The ESP module will show up as a new integration. After enabling this integration, you can add the entities given in your espaxa yaml file in your interface. The objects will already use their default MDI picture.
-![Home Assitant](https://github.com/Baanaaana/espaxa/blob/main/docs/ha_esphome.png)
+![Home Assitant](https://github.com/Baanaaana/espaxa/blob/main/docs/homeassistant_esphome.png)
 ## Thank you
 For inspiration and examples:
 - [SuperHouse Automation](https://github.com/SuperHouse/)
