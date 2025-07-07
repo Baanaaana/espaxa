@@ -109,6 +109,19 @@ void EspAxaComponent::read_response() {
           ESP_LOGD(TAG, "Device Info: Not Supported (502)");
           this->expecting_device_info_ = false;
           parsed = true;
+        } else if (strstr(line, "260") != nullptr) {
+          // Extract device info from "260 AXA RV2900 2.0"
+          char* device_start = strchr(line, ' ');
+          if (device_start != nullptr) {
+            device_start++; // Skip the space
+            this->device_info_text_sensor_->publish_state(device_start);
+            ESP_LOGD(TAG, "Device Info: %s", device_start);
+          } else {
+            this->device_info_text_sensor_->publish_state(line);
+            ESP_LOGD(TAG, "Device Info: %s", line);
+          }
+          this->expecting_device_info_ = false;
+          parsed = true;
         } else {
           this->device_info_text_sensor_->publish_state(line);
           ESP_LOGD(TAG, "Device Info: %s", line);
